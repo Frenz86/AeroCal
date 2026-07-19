@@ -39,7 +39,7 @@ Una volta avviato, AeroCal vive nella system tray. Click sull'icona per il menu:
 
 | Voce | Cosa fa |
 |---|---|
-| **Prossimi eventi** | Toast con i prossimi 3 eventi e lo stato dell'aggiornamento |
+| **Prossimi eventi** | Finestra con l'elenco degli eventi delle prossime 24 ore e lo stato dell'aggiornamento |
 | **Testa aeroplanino** | Lancia l'animazione di prova |
 | **Cambia URL ICS** | Riapre la finestra di configurazione |
 | **Avvio automatico** | Attiva/disattiva l'avvio con Windows (spunta = attivo) |

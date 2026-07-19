@@ -387,6 +387,37 @@ def fly_animation(text: str) -> None:
 
 
 # --------------------------------------------------------------------------
+# finestra con l'elenco dei prossimi eventi
+# --------------------------------------------------------------------------
+
+def list_window(status: str, lines: list[str]) -> None:
+    import tkinter as tk
+
+    root = tk.Tk()
+    root.title(f"{APP_NAME} - prossimi eventi")
+    root.attributes("-topmost", True)
+    root.resizable(False, False)
+
+    tk.Label(root, text="Prossimi eventi (24 ore)", font=("Segoe UI", 12, "bold"),
+             padx=16, pady=10).pack(anchor="w")
+    body = "\n".join(lines) if lines else "Nessun evento nelle prossime 24 ore."
+    tk.Label(root, text=body, justify="left", font=("Segoe UI", 11),
+             padx=16).pack(anchor="w")
+    if status:
+        tk.Label(root, text=f"Stato: {status}", justify="left",
+                 font=("Segoe UI", 9), fg="#777777", padx=16, pady=8).pack(anchor="w")
+    tk.Button(root, text="Chiudi", command=root.destroy, width=12).pack(pady=(4, 12))
+
+    # in basso a destra, sopra la tray
+    root.update_idletasks()
+    w, h = root.winfo_reqwidth(), root.winfo_reqheight()
+    sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+    root.geometry(f"+{sw - w - 24}+{sh - h - 90}")
+    root.bind("<Escape>", lambda e: root.destroy())
+    root.mainloop()
+
+
+# --------------------------------------------------------------------------
 # dialogo di configurazione (URL ICS segreto)
 # --------------------------------------------------------------------------
 
@@ -565,13 +596,22 @@ def run_tray(engine: Engine) -> None:
     from pystray import MenuItem as Item
 
     def show_upcoming(icon, item):
+        from tzlocal import get_localzone
+        now = datetime.now(get_localzone())
         with engine.lock:
-            events = engine.upcoming[:3]
-        if events:
-            lines = "\n".join(f"{e['start']:%H:%M}  {e['title']}" for e in events)
-        else:
-            lines = "Nessun evento nelle prossime 24 ore."
-        show_toast("Prossimi eventi", f"{lines}\n\nStato: {engine.status}")
+            events = list(engine.upcoming)
+        lines = []
+        for e in events:
+            d = e["start"].date()
+            if d == now.date():
+                day = "oggi"
+            elif d == (now + timedelta(days=1)).date():
+                day = "domani"
+            else:
+                day = f"{e['start']:%d/%m}"
+            lines.append(f"{day} {e['start']:%H:%M}   {e['title']}")
+        subprocess.Popen(_self_cmd("--list", engine.status, *lines),
+                         creationflags=subprocess.CREATE_NO_WINDOW)
 
     def test_plane(icon, item):
         launch_airplane("Volo di prova!")
@@ -613,6 +653,9 @@ def main() -> None:
         return
     if args[:1] == ["--setup"]:
         setup_dialog()
+        return
+    if args[:1] == ["--list"]:
+        list_window(args[1] if len(args) > 1 else "", args[2:])
         return
 
     if already_running():
