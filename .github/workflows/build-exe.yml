@@ -1,0 +1,53 @@
+name: Build AeroCal.exe
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt "pyinstaller>=6.10"
+
+      - name: Generate icon from the tray airplane
+        run: python -c "import main; main.make_icon_image().resize((256, 256)).save('aerocal.ico', sizes=[(16, 16), (32, 32), (48, 48), (256, 256)])"
+
+      - name: Build single-file exe
+        run: >
+          pyinstaller --onefile --noconsole --clean
+          --name AeroCal
+          --icon aerocal.ico
+          --collect-data tzdata
+          --hidden-import pystray._win32
+          main.py
+
+      - name: Smoke test (exe starts and exits)
+        run: |
+          $p = Start-Process dist\AeroCal.exe -ArgumentList '--fly','CI TEST' -PassThru
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); exit 1 }
+          exit $p.ExitCode
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AeroCal-windows
+          path: dist/AeroCal.exe
+
+      - name: Release (solo sui tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/AeroCal.exe
