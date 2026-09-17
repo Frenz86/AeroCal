@@ -1,6 +1,6 @@
 # ✈️ AeroCal
 
-Avvisi di Google Calendar dalla system tray di Windows: **5 minuti prima di ogni evento** un aeroplanino di carta attraversa lo schermo trainando uno striscione con il titolo dell'evento, accompagnato da una notifica toast di Windows.
+Avvisi di Google Calendar o Outlook/Teams dalla system tray di Windows: **5 minuti prima di ogni evento** un aeroplanino di carta attraversa lo schermo trainando uno striscione con il titolo dell'evento, accompagnato da una notifica toast di Windows.
 
 ## Caratteristiche
 
@@ -9,7 +9,7 @@ Avvisi di Google Calendar dalla system tray di Windows: **5 minuti prima di ogni
 - 🖥️ **Icona nella system tray** — menu con prossimi eventi, test dell'animazione, cambio URL e avvio automatico
 - 🔁 **Aggiornamento automatico** — scarica il calendario ogni 2 minuti e gestisce anche gli eventi ricorrenti
 - 🚀 **Avvio con Windows** — attivabile/disattivabile con un click dal menu della tray
-- 🔒 **Sicurezza** — l'URL segreto del calendario è cifrato con DPAPI (legato al tuo account Windows), sono accettati solo URL HTTPS di `calendar.google.com`, i testi del calendario vengono sanificati e **nessun contenuto del calendario finisce nei log**
+- 🔒 **Sicurezza** — l'URL segreto del calendario è cifrato con DPAPI (legato al tuo account Windows), sono accettati solo URL HTTPS di `calendar.google.com` o `outlook.office365.com`/`outlook.live.com`, i testi del calendario vengono sanificati e **nessun contenuto del calendario finisce nei log**
 
 ## Download (consigliato)
 
@@ -22,7 +22,9 @@ Al primo avvio Windows SmartScreen potrebbe chiedere conferma (l'exe non è firm
 
 ## Configurazione: l'URL segreto iCal
 
-Al primo avvio AeroCal chiede l'**indirizzo segreto in formato iCal** del tuo Google Calendar:
+Al primo avvio AeroCal chiede l'**indirizzo segreto in formato iCal** del tuo calendario. Sono supportati **Google Calendar** e **Outlook/Teams** (il calendario delle riunioni Teams è lo stesso calendario Outlook dell'account Microsoft 365).
+
+### Google Calendar
 
 1. Apri [Google Calendar](https://calendar.google.com) dal browser (non dall'app)
 2. ⚙️ **Impostazioni** → nella colonna a sinistra scegli il tuo calendario
@@ -30,6 +32,15 @@ Al primo avvio AeroCal chiede l'**indirizzo segreto in formato iCal** del tuo Go
 4. Scorri fino a **"Indirizzo segreto in formato iCal"** e copialo
 
 > ⚠️ **Attenzione a non copiare l'"Indirizzo pubblico"**: quello funziona solo se il calendario è pubblico. Serve l'indirizzo *segreto* (contiene `/private-.../basic.ics`). E non condividerlo con nessuno: chi lo possiede può leggere il tuo calendario.
+
+### Outlook / Teams
+
+1. Apri [Outlook sul web](https://outlook.office.com/calendar) e vai su **Calendario**
+2. ⚙️ **Impostazioni** → **Calendario** → **Calendari condivisi**
+3. Sotto **"Pubblica un calendario"** scegli il tuo calendario, permesso **"Può visualizzare tutti i dettagli"**, clicca **Pubblica**
+4. Copia il link **ICS** generato (termina con `.ics`)
+
+> ⚠️ Anche in questo caso il link va tenuto segreto: chi lo possiede può leggere il calendario (incluse le riunioni Teams).
 
 L'URL viene salvato **cifrato con DPAPI** in `%APPDATA%\AeroCal\config.dat`: è leggibile solo dal tuo account Windows su questo PC.
 

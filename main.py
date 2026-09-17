@@ -1,11 +1,12 @@
-"""AeroCal - avvisi Google Calendar dalla system tray.
+"""AeroCal - avvisi calendario (Google Calendar / Outlook-Teams) dalla system tray.
 
 Un aeroplanino di carta attraversa lo schermo (+ toast di Windows)
 5 minuti prima di ogni evento del calendario.
 
 Sicurezza:
 - l'URL ICS segreto e' cifrato con DPAPI (legato all'account Windows dell'utente)
-- solo HTTPS verso calendar.google.com, certificato verificato
+- solo HTTPS verso host noti (calendar.google.com, outlook.office365.com,
+  outlook.live.com), certificato verificato
 - i testi provenienti dal calendario vengono sanificati prima delle notifiche
 - nessun contenuto del calendario viene scritto nei log
 
@@ -39,7 +40,7 @@ LEAD_MINUTES = 5          # minuti di preavviso
 POLL_SECONDS = 120        # ogni quanto scaricare l'ICS
 TICK_SECONDS = 5          # ogni quanto controllare l'orologio
 MAX_ICS_BYTES = 20 * 1024 * 1024
-ALLOWED_HOSTS = {"calendar.google.com"}
+ALLOWED_HOSTS = {"calendar.google.com", "outlook.office365.com", "outlook.live.com"}
 MAX_TITLE_LEN = 120
 
 
@@ -110,10 +111,11 @@ def validate_ics_url(url: str) -> str | None:
     if p.scheme != "https":
         return "L'URL deve iniziare con https://"
     if p.hostname not in ALLOWED_HOSTS:
-        return "Per sicurezza sono accettati solo URL di calendar.google.com"
+        return ("Per sicurezza sono accettati solo URL di calendar.google.com "
+                 "oppure outlook.office365.com / outlook.live.com (Outlook/Teams)")
     if not p.path.endswith(".ics"):
         return "L'URL deve essere l'indirizzo segreto in formato iCal (finisce con .ics)"
-    if "/public/" in p.path:
+    if p.hostname == "calendar.google.com" and "/public/" in p.path:
         return ("Questo e' l'indirizzo PUBBLICO, che non funziona se il calendario "
                 "non e' pubblico.\nNella sezione 'Integra il calendario' scorri piu' "
                 "in basso e copia l'INDIRIZZO SEGRETO in formato iCal "
@@ -434,10 +436,12 @@ def setup_dialog() -> bool:
     root.resizable(False, False)
 
     tk.Label(root, justify="left", padx=14, pady=8, text=(
-        "Incolla l'indirizzo segreto in formato iCal del tuo Google Calendar.\n\n"
-        "Dove trovarlo:  Google Calendar (web) > Impostazioni >\n"
-        "il tuo calendario > 'Integra il calendario' >\n"
-        "'Indirizzo segreto in formato iCal'.\n\n"
+        "Incolla l'indirizzo segreto in formato iCal del tuo calendario\n"
+        "(Google Calendar oppure Outlook/Teams).\n\n"
+        "Google Calendar (web):  Impostazioni > il tuo calendario >\n"
+        "'Integra il calendario' > 'Indirizzo segreto in formato iCal'.\n\n"
+        "Outlook/Teams (outlook.office.com):  Impostazioni > Calendario >\n"
+        "Calendari condivisi > Pubblica un calendario > copia il link ICS.\n\n"
         "L'URL verra' salvato cifrato (DPAPI) solo su questo PC.\n"
         "Non condividerlo con nessuno: chi lo possiede puo' leggere il calendario."
     )).pack()
