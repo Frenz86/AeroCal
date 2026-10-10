@@ -13,10 +13,10 @@ Avvisi di Google Calendar o Outlook/Teams dalla system tray di Windows: **5 minu
 
 ## Download (consigliato)
 
-Non serve Python: scarica **`AeroCal.exe`** già pronto.
+Non serve Python: scarica l'exe già pronto: **`AeroCal-x64.exe`** (PC Intel/AMD) oppure **`AeroCal-arm64.exe`** (Windows su ARM, es. Snapdragon).
 
 - Dalla pagina [**Releases**](https://github.com/Frenz86/AeroCal/releases) (build dei tag `v*`)
-- Oppure dall'ultima build di [**GitHub Actions**](https://github.com/Frenz86/AeroCal/actions) → artifact `AeroCal-windows`
+- Oppure dall'ultima build di [**GitHub Actions**](https://github.com/Frenz86/AeroCal/actions) → artifact `AeroCal-windows-x64` o `AeroCal-windows-arm64`
 
 Al primo avvio Windows SmartScreen potrebbe chiedere conferma (l'exe non è firmato): clicca *Ulteriori informazioni* → *Esegui comunque*.
 
@@ -97,7 +97,7 @@ L'eseguibile finisce in `dist\AeroCal.exe`.
 
 ### Build automatica (CI)
 
-Il workflow [`build-exe.yml`](.github/workflows/build-exe.yml) compila l'exe a ogni push su `main`, esegue uno smoke test e carica l'artifact. Creando un tag `v*` (es. `v1.0.0`) viene pubblicata automaticamente una **Release** con l'exe allegato.
+Il workflow [`build-exe.yml`](.github/workflows/build-exe.yml) compila l'exe (x64 e ARM64) a ogni push su `main`, esegue uno smoke test e carica l'artifact. Creando un tag `v*` (es. `v1.0.0`) viene pubblicata automaticamente una **Release** con gli exe allegati.
 
 ```powershell
 git tag v1.0.0
