@@ -22,6 +22,7 @@ import ctypes.wintypes
 import json
 import math
 import os
+import random
 import subprocess
 import sys
 import threading
@@ -255,8 +256,14 @@ def fly_animation(text: str) -> None:
     gap = 46 * S      # corda tra coda e striscione
     total_w = 120 * S + gap + banner_w   # aereo + corda + striscione
 
+    rot = [0.0]   # inclinazione dell'aereo in radianti (>0 = muso in giu')
+
+    def rp(px, py, x, y):
+        c, s_ = math.cos(rot[0]), math.sin(rot[0])
+        return x + (px * c - py * s_) * S, y + (px * s_ + py * c) * S
+
     def off(pts, x, y):
-        return [c for px, py in pts for c in (x + px * S, y + py * S)]
+        return [c for px, py in pts for c in rp(px, py, x, y)]
 
     # l'aereo punta verso destra, origine sul centro della fusoliera
     fus = [(46, -2), (38, -8), (10, -11), (-24, -8), (-34, -3),
@@ -299,32 +306,103 @@ def fly_animation(text: str) -> None:
     char_fg = [canvas.create_text(0, 0, text=ch, font=banner_font, fill="#b33939")
                for ch in text]
 
+    # click sull'aereo: precipita e si schianta in fondo allo schermo
+    GRAVITY = 1500 * S
+    CRASH_LINGER = 4.0
+    plane_ids = [items[k] for k in ("tailplane", "tailfin", "wing_top", "fus", "stripe",
+                                    "cockpit", "wing", "nose", "prop")]
+    pos = {"x": 0.0, "y": 0.0, "speed": (sw + total_w + 20 * S) / FLY_SECONDS}
+    crash = {}
+    puffs = []
+
+    def puff(x, y, vx, vy, life, r0, r1, color):
+        puffs.append({"id": canvas.create_oval(0, 0, 0, 0, fill=color, outline=""),
+                      "x": x, "y": y, "vx": vx, "vy": vy, "born": time.monotonic(),
+                      "life": life, "r0": r0, "r1": r1})
+
+    def update_puffs(now):
+        for p in puffs[:]:
+            a = (now - p["born"]) / p["life"]
+            if a >= 1:
+                canvas.delete(p["id"])
+                puffs.remove(p)
+                continue
+            px = p["x"] + p["vx"] * (now - p["born"])
+            py = p["y"] + p["vy"] * (now - p["born"])
+            r = (p["r0"] + (p["r1"] - p["r0"]) * a) * S
+            canvas.coords(p["id"], px - r, py - r, px + r, py + r)
+
+    def on_click(_event):
+        if crash:
+            return
+        crash.update(t0=time.monotonic(), x0=pos["x"], y0=pos["y"], hit=None)
+        root.geometry(f"{sw}x{sh - y0}+0+{y0}")
+        canvas.config(height=sh - y0)
+
+    for pid in plane_ids:
+        canvas.tag_bind(pid, "<Button-1>", on_click)
+        canvas.tag_bind(pid, "<Enter>", lambda e: canvas.config(cursor="hand2"))
+        canvas.tag_bind(pid, "<Leave>", lambda e: canvas.config(cursor=""))
+
     start_t = time.monotonic()
 
     def step():
-        el = time.monotonic() - start_t
-        t = el / FLY_SECONDS
-        if t >= FLY_REPEATS:
-            root.destroy()
-            return
-        t = t % 1.0           # ogni passaggio riparte da sinistra
-        # il muso entra subito da sinistra; il passaggio finisce appena lo
-        # striscione esce a destra, cosi' la ripetizione e' quasi istantanea
-        x = -60 * S + (sw + total_w + 20 * S) * t
-        y = band_h * 0.45 + math.sin(el * 1.1) * 12 * S
+        now = time.monotonic()
+        el = now - start_t
+        if not crash:
+            t = el / FLY_SECONDS
+            if t >= FLY_REPEATS:
+                root.destroy()
+                return
+            t = t % 1.0           # ogni passaggio riparte da sinistra
+            # il muso entra subito da sinistra; il passaggio finisce appena lo
+            # striscione esce a destra, cosi' la ripetizione e' quasi istantanea
+            x = -60 * S + (sw + total_w + 20 * S) * t
+            y = band_h * 0.45 + math.sin(el * 1.1) * 12 * S
+            pos["x"], pos["y"] = x, y
+        else:
+            ground = sh - y0 - 50 * S
+            if crash["hit"] is None:
+                dt = now - crash["t0"]
+                x = crash["x0"] + pos["speed"] * dt
+                y = crash["y0"] + 0.5 * GRAVITY * dt * dt
+                rot[0] = math.radians(min(80, 70 * dt))
+                if y >= ground:
+                    y = ground
+                    crash["hit"] = now
+                    for _ in range(18):
+                        a = random.uniform(0, 2 * math.pi)
+                        v = random.uniform(60, 320) * S
+                        puff(x + 40 * S, y + 40 * S, math.cos(a) * v,
+                             math.sin(a) * v * 0.7 - 80 * S, random.uniform(0.5, 1.1),
+                             8, 30, random.choice(["#ffb02e", "#ff7a1a", "#ffe066", "#555555"]))
+                crash["x"], crash["y"] = x, y
+            else:
+                x, y = crash["x"], crash["y"]
+                if now - crash["hit"] > CRASH_LINGER:
+                    root.destroy()
+                    return
+            if random.random() < (0.9 if crash["hit"] is None else 0.25):
+                px, py = rp(-34, 0, x, y)
+                puff(px, py, random.uniform(-15, 15) * S, -random.uniform(20, 60) * S,
+                     random.uniform(0.8, 1.6), 5, 16,
+                     random.choice(["#444444", "#6b6b6b", "#8a8a8a"]))
+        update_puffs(now)
 
         canvas.coords(items["fus"], *off(fus, x, y))
         canvas.coords(items["wing"], *off(wing, x, y))
         canvas.coords(items["wing_top"], *off(wing_top, x, y))
         canvas.coords(items["tailfin"], *off(tailfin, x, y))
         canvas.coords(items["tailplane"], *off(tailplane, x, y))
-        canvas.coords(items["stripe"], x - 30 * S, y + 1 * S, x + 40 * S, y + 1 * S)
-        canvas.coords(items["cockpit"], x + 14 * S, y - 13 * S, x + 30 * S, y - 3 * S)
-        canvas.coords(items["nose"], x + 42 * S, y - 5 * S, x + 52 * S, y + 5 * S)
+        canvas.coords(items["stripe"], *rp(-30, 1, x, y), *rp(40, 1, x, y))
+        cx_, cy_ = rp(22, -8, x, y)
+        canvas.coords(items["cockpit"], cx_ - 8 * S, cy_ - 5 * S, cx_ + 8 * S, cy_ + 5 * S)
+        nx_, ny_ = rp(47, 0, x, y)
+        canvas.coords(items["nose"], nx_ - 5 * S, ny_ - 5 * S, nx_ + 5 * S, ny_ + 5 * S)
 
         # elica: linea verticale che "gira" (lunghezza pulsante)
-        pr = (20 * abs(math.sin(el * 24)) + 4) * S
-        canvas.coords(items["prop"], x + 49 * S, y - pr, x + 49 * S, y + pr)
+        pr = 0 if crash else (20 * abs(math.sin(el * 24)) + 4)
+        canvas.coords(items["prop"], *rp(49, -pr, x, y), *rp(49, pr, x, y))
 
         # striscione trainato: stoffa che ondeggia come un vero banner aereo
         bx1 = x - 34 * S - gap             # bordo destro (attaccato alle corde)
