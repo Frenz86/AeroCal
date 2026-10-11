@@ -332,16 +332,32 @@ def fly_animation(text: str) -> None:
             r = (p["r0"] + (p["r1"] - p["r0"]) * a) * S
             canvas.coords(p["id"], px - r, py - r, px + r, py + r)
 
-    def on_click(_event):
-        if crash:
-            return
+    holes = []            # fori di proiettile: coordinate locali all'aereo
+    HITS_TO_CRASH = 4
+
+    def start_crash():
         crash.update(t0=time.monotonic(), x0=pos["x"], y0=pos["y"], hit=None)
         root.geometry(f"{sw}x{sh - y0}+0+{y0}")
         canvas.config(height=sh - y0)
 
+    def on_click(event):
+        if crash:
+            return
+        under = canvas.find_overlapping(event.x, event.y, event.x, event.y)
+        if not any(i in plane_ids or i in [h["id"] for h in holes] for i in under):
+            return
+        # inverso di rp() con inclinazione 0 (in volo l'aereo e' dritto)
+        lx, ly = (event.x - pos["x"]) / S, (event.y - pos["y"]) / S
+        holes.append({"id": canvas.create_oval(0, 0, 0, 0, fill="#1a1010",
+                                               outline="#ff9d2e", width=2),
+                      "lx": lx, "ly": ly})
+        puff(event.x, event.y, 0, -30 * S, 0.3, 4, 14, "#ffe066")
+        if len(holes) >= HITS_TO_CRASH:
+            start_crash()
+
+    canvas.bind("<Button-1>", on_click)
     for pid in plane_ids:
-        canvas.tag_bind(pid, "<Button-1>", on_click)
-        canvas.tag_bind(pid, "<Enter>", lambda e: canvas.config(cursor="hand2"))
+        canvas.tag_bind(pid, "<Enter>", lambda e: canvas.config(cursor="crosshair"))
         canvas.tag_bind(pid, "<Leave>", lambda e: canvas.config(cursor=""))
 
     start_t = time.monotonic()
@@ -387,6 +403,14 @@ def fly_animation(text: str) -> None:
                 puff(px, py, random.uniform(-15, 15) * S, -random.uniform(20, 60) * S,
                      random.uniform(0.8, 1.6), 5, 16,
                      random.choice(["#444444", "#6b6b6b", "#8a8a8a"]))
+        if holes and not crash and random.random() < 0.04 * len(holes):
+            px, py = rp(-34, 0, x, y)
+            puff(px, py, random.uniform(-15, 15) * S, -random.uniform(20, 60) * S,
+                 random.uniform(0.8, 1.4), 4, 12, random.choice(["#444444", "#6b6b6b"]))
+        for h in holes:
+            hx, hy = rp(h["lx"], h["ly"], x, y)
+            canvas.coords(h["id"], hx - 4 * S, hy - 4 * S, hx + 4 * S, hy + 4 * S)
+            canvas.tag_raise(h["id"])
         update_puffs(now)
 
         canvas.coords(items["fus"], *off(fus, x, y))
